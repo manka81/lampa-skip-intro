@@ -10,7 +10,7 @@
     window.__lampaSkipIntroLoaded = true;
 
     var PLUGIN_NAME = 'Пропуск интро';
-    var PLUGIN_VERSION = '1.0.0';
+    var PLUGIN_VERSION = '1.0.1';
 
     // Конфигурация и стили
     var STYLES = `
@@ -125,13 +125,14 @@
                     name: 'skip_intro_step',
                     type: 'select',
                     values: {
-                        '60': '60 секунд',
-                        '75': '75 секунд',
+                        '60': '60 секунд (1 мин)',
+                        '75': '75 секунд (1 мин 15 сек)',
                         '85': '85 секунд (стандарт опенингов)',
                         '90': '90 секунд (1.5 минуты)',
+                        '98': '98 секунд (1 мин 38 сек)',
                         '120': '120 секунд (2 минуты)'
                     },
-                    default: '85'
+                    default: '98'
                 },
                 field: {
                     name: 'Длительность ручного пропуска',
@@ -205,9 +206,9 @@
         },
 
         getSkipStep: function () {
-            if (!window.Lampa || !Lampa.Storage) return 85;
+            if (!window.Lampa || !Lampa.Storage) return 98;
             var val = parseInt(Lampa.Storage.field('skip_intro_step'), 10);
-            return isNaN(val) ? 85 : val;
+            return isNaN(val) ? 98 : val;
         },
 
         isFloatingEnabled: function () {
