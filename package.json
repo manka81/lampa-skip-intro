@@ -1,6 +1,6 @@
 {
   "name": "lampa-skip-intro",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Lampa plugin: reliable skip intro button and auto-skip for Smart TV and Web",
   "main": "dist/plugin.js",
   "scripts": {
