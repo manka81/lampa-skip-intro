@@ -10,58 +10,84 @@
     window.__lampaSkipIntroLoaded = true;
 
     var PLUGIN_NAME = 'Пропуск интро';
-    var PLUGIN_VERSION = '1.0.2';
+    var PLUGIN_VERSION = '1.0.3';
 
-    // Автоматическая регистрация названия и автора (@manka81) в списке плагинов Lampa
-    function registerPluginMetadata() {
+    // Гарантированная регистрация названия и автора (@manka81) в памяти, хранилище и DOM
+    function patchPluginsMetadata() {
+        var targets = [
+            {
+                pattern: ['lampa-skip-intro', 'skip-intro'],
+                name: 'Пропуск интро',
+                author: '@manka81'
+            },
+            {
+                pattern: ['/sync', 'manka81/sync', 'sync.js'],
+                name: 'Синхронизация',
+                author: '@manka81'
+            }
+        ];
+
+        // 1. Обновляем память Lampa.Plugins._loaded
         try {
-            if (!window.Lampa || !Lampa.Storage) return;
-            var raw = Lampa.Storage.get('plugins', '[]');
-            var plugins = typeof raw === 'string' ? JSON.parse(raw) : raw;
-
-            if (Array.isArray(plugins)) {
-                var changed = false;
-                plugins.forEach(function (plug) {
+            if (window.Lampa && Lampa.Plugins) {
+                var loaded = typeof Lampa.Plugins.get === 'function' ? Lampa.Plugins.get() : [];
+                var pluginsChanged = false;
+                loaded.forEach(function (plug) {
                     var u = (plug.url || plug.link || '').toLowerCase();
-
-                    // 1. Пропуск интро (lampa-skip-intro)
-                    if (u.indexOf('lampa-skip-intro') !== -1 || u.indexOf('skip-intro') !== -1) {
-                        if (plug.name !== 'Пропуск интро') {
-                            plug.name = 'Пропуск интро';
-                            changed = true;
+                    targets.forEach(function (t) {
+                        var match = t.pattern.some(function (p) { return u.indexOf(p) !== -1; });
+                        if (match) {
+                            if (plug.name !== t.name) {
+                                plug.name = t.name;
+                                pluginsChanged = true;
+                            }
+                            if (plug.author !== t.author) {
+                                plug.author = t.author;
+                                pluginsChanged = true;
+                            }
                         }
-                        if (plug.author !== '@manka81') {
-                            plug.author = '@manka81';
-                            changed = true;
-                        }
-                    }
-
-                    // 2. Синхронизация (sync)
-                    if (u.indexOf('/sync') !== -1 || u.indexOf('manka81/sync') !== -1) {
-                        if (plug.name !== 'Синхронизация') {
-                            plug.name = 'Синхронизация';
-                            changed = true;
-                        }
-                        if (plug.author !== '@manka81') {
-                            plug.author = '@manka81';
-                            changed = true;
-                        }
-                    }
+                    });
                 });
-
-                if (changed) {
-                    Lampa.Storage.set('plugins', plugins);
-                    try {
-                        window.localStorage.setItem('plugins', JSON.stringify(plugins));
-                    } catch (e) {}
-                    console.log('[SkipIntro] Названия и авторы (@manka81) успешно обновлены в Lampa.');
+                if (pluginsChanged && typeof Lampa.Plugins.save === 'function') {
+                    Lampa.Plugins.save();
                 }
             }
-        } catch (err) {
-            console.log('[SkipIntro] Ошибка обновления метаданных плагинов:', err);
-        }
+        } catch (e) {}
 
-        // Если экран плагинов сейчас открыт на экране, обновляем DOM на лету
+        // 2. Обновляем Lampa.Storage и localStorage
+        try {
+            if (window.Lampa && Lampa.Storage) {
+                var raw = Lampa.Storage.get('plugins', '[]');
+                var storageList = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                if (Array.isArray(storageList)) {
+                    var storageChanged = false;
+                    storageList.forEach(function (plug) {
+                        var u = (plug.url || plug.link || '').toLowerCase();
+                        targets.forEach(function (t) {
+                            var match = t.pattern.some(function (p) { return u.indexOf(p) !== -1; });
+                            if (match) {
+                                if (plug.name !== t.name) {
+                                    plug.name = t.name;
+                                    storageChanged = true;
+                                }
+                                if (plug.author !== t.author) {
+                                    plug.author = t.author;
+                                    storageChanged = true;
+                                }
+                            }
+                        });
+                    });
+                    if (storageChanged) {
+                        Lampa.Storage.set('plugins', storageList);
+                        try {
+                            window.localStorage.setItem('plugins', JSON.stringify(storageList));
+                        } catch (e) {}
+                    }
+                }
+            }
+        } catch (e) {}
+
+        // 3. Прямое обновление DOM карточек в меню "Расширения"
         try {
             var items = document.querySelectorAll('.extensions__item');
             if (items && items.length) {
@@ -69,26 +95,40 @@
                     var el = items[i];
                     var descr = (el.querySelector('.extensions__item-descr') || {}).innerText || '';
                     descr = descr.toLowerCase();
-                    if (descr.indexOf('lampa-skip-intro') !== -1 || descr.indexOf('skip-intro') !== -1) {
-                        var nameEl = el.querySelector('.extensions__item-name');
-                        var authorEl = el.querySelector('.extensions__item-author');
-                        if (nameEl) nameEl.innerText = 'Пропуск интро';
-                        if (authorEl) authorEl.innerText = '@manka81';
-                    }
-                    if (descr.indexOf('/sync') !== -1 || descr.indexOf('manka81/sync') !== -1) {
-                        var nameEl2 = el.querySelector('.extensions__item-name');
-                        var authorEl2 = el.querySelector('.extensions__item-author');
-                        if (nameEl2) nameEl2.innerText = 'Синхронизация';
-                        if (authorEl2) authorEl2.innerText = '@manka81';
-                    }
+                    targets.forEach(function (t) {
+                        var match = t.pattern.some(function (p) { return descr.indexOf(p) !== -1; });
+                        if (match) {
+                            var nameEl = el.querySelector('.extensions__item-name');
+                            var authorEl = el.querySelector('.extensions__item-author');
+                            if (nameEl && nameEl.innerText !== t.name) {
+                                nameEl.innerText = t.name;
+                            }
+                            if (authorEl && authorEl.innerText !== t.author) {
+                                authorEl.innerText = t.author;
+                            }
+                        }
+                    });
                 }
             }
         } catch (e) {}
     }
 
-    registerPluginMetadata();
-    setTimeout(registerPluginMetadata, 800);
-    setTimeout(registerPluginMetadata, 2500);
+    // Запуск проверки и регистрация наблюдателя DOM
+    patchPluginsMetadata();
+    for (var delay = 500; delay <= 6000; delay += 1000) {
+        setTimeout(patchPluginsMetadata, delay);
+    }
+
+    try {
+        if (typeof MutationObserver !== 'undefined' && document.body) {
+            var observer = new MutationObserver(function () {
+                if (document.querySelector('.extensions__item')) {
+                    patchPluginsMetadata();
+                }
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+        }
+    } catch (e) {}
 
     // Конфигурация и стили
     var STYLES = `
@@ -169,11 +209,11 @@
         checkInterval: null,
 
         init: function () {
-            registerPluginMetadata();
+            patchPluginsMetadata();
             injectStyles();
             this.initSettings();
             this.bindEvents();
-            setTimeout(registerPluginMetadata, 1500);
+            setTimeout(patchPluginsMetadata, 1000);
             console.log('[SkipIntro] Плагин "' + PLUGIN_NAME + '" v' + PLUGIN_VERSION + ' успешно загружен.');
         },
 
